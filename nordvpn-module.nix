@@ -33,7 +33,6 @@
       src = fetchurl {
         url = "https://repo.nordvpn.com/deb/nordvpn/debian/pool/main/n/nordvpn/nordvpn_${version}_amd64.deb";
         hash = "sha256-oFf4uxZsucAh2yW++SQRxFx8+JdL8ZsNzWqzjJ2JqUs=";
-#        hash = "sha256-LcTQEqaP1+UeBxi+gqQAuQKKzVgzMWSb7rMEB6qc6hk=";
       };
 
       buildInputs = [libxml2 libidn2 libnl libcap_ng sqlite];
@@ -111,9 +110,7 @@ in
       type = types.bool;
       default = false;
       description = ''
-        Whether to enable the NordVPN daemon. Note that you'll have to set
-        `networking.firewall.checkReversePath = false;` and add UDP 1194
-        and TCP 443 to the list of allowed ports in the firewall.
+        Whether to enable the NordVPN daemon.
       '';
     };
 
@@ -129,10 +126,26 @@ in
       example = ["alice"];
     };
 
-    config = mkIf config.services.nordvpn.enable {
-      networking.firewall.checkReversePath = false;
+    options.services.nordvpn.openFirewall = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Whether to open the firewall for NordVPN.
+        This includes setting
+        `networking.firewall.checkReversePath = false;` and
+        adding ports TCP 443 and UDP 1194 to the respective allowlists.
+      '';
+      example = true;
+    };
 
+    config = mkIf config.services.nordvpn.enable {
       environment.systemPackages = [nordVpnPkg];
+
+      networking.firewall = mkIf config.services.nordvpn.openFirewall {
+        checkReversePath = false;
+        allowedTCPPorts = [443];
+        allowedUDPPorts = [1194];
+      };
 
       # if services.nordvpn.users is defined, add the specified users to the nordvpn group,
       # otherwise ensure group exists by setting users.groups.nordvpn = {}
