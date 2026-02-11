@@ -138,6 +138,20 @@ in
       example = true;
     };
 
+    options.services.nordvpn.mtu = mkOption {
+      type = types.nullOr types.int;
+      default = null;
+      description = ''
+        MTU (max network package size) - smaller means more fragmentation,
+        but larger packages can fail to transmit. Leave empty to use the default,
+        set to something like `1280` if connection issues occur.
+        (Hint: you can test if MTU is low enough using `ping -M do -s 1280 1.1.1.1`,
+        replacing `1280` by the MTU you want to try. If too large, it will
+        fail with `ping: sendmsg: Message too long`.)
+      '';
+      example = 1280;
+    };
+
     config = mkIf config.services.nordvpn.enable {
       environment.systemPackages = [nordVpnPkg];
 
@@ -145,6 +159,10 @@ in
         checkReversePath = false;
         allowedTCPPorts = [443];
         allowedUDPPorts = [1194];
+      };
+
+      networking.interfaces = mkIf (config.services.nordvpn.mtu != null) {
+        nordlynx.mtu = config.services.nordvpn.mtu;
       };
 
       # if services.nordvpn.users is defined, add the specified users to the nordvpn group,
