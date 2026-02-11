@@ -107,24 +107,39 @@
     }) {};
 in
   with lib; {
-    options.myypo.services.custom.nordvpn.enable = mkOption {
+    options.services.nordvpn.enable = mkOption {
       type = types.bool;
       default = false;
       description = ''
         Whether to enable the NordVPN daemon. Note that you'll have to set
-        `networking.firewall.checkReversePath = false;`, add UDP 1194
-        and TCP 443 to the list of allowed ports in the firewall and add your
-        user to the "nordvpn" group (`users.users.<username>.extraGroups`).
+        `networking.firewall.checkReversePath = false;` and add UDP 1194
+        and TCP 443 to the list of allowed ports in the firewall.
       '';
     };
 
-    config = mkIf config.myypo.services.custom.nordvpn.enable {
+    options.services.nordvpn.users = mkOption {
+      type = types.listOf types.str;
+      description = ''
+        Which users to add to the "nordvpn" group.
+        Your current user must be in the group for a successful
+        login. If you prefer to set this elsewhere, like
+        `users.users.<username>.extraGroups`, set this to `[]`.
+        Keep in mind that updating groups may require reboot/re-login.
+      '';
+      example = ["alice"];
+    };
+
+    config = mkIf config.services.nordvpn.enable {
       networking.firewall.checkReversePath = false;
 
       environment.systemPackages = [nordVpnPkg];
 
-      users.groups.nordvpn = {};
-      users.groups.nordvpn.members = ["myypo"];
+      # if services.nordvpn.users is defined, add the specified users to the nordvpn group,
+      # otherwise ensure group exists by setting users.groups.nordvpn = {}
+      users.groups.nordvpn = {
+        members = mkIf (config.services.nordvpn.users != []) config.services.nordvpn.users;
+      };
+
       systemd = {
         services.nordvpn = {
           description = "NordVPN daemon.";
