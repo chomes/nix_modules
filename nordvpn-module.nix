@@ -25,15 +25,15 @@
     wireguard-tools,
   }: let
     pname = "nordvpn";
-    version = "4.3.1";
+    version = "4.4.0";
 
     nordVPNBase = stdenv.mkDerivation {
       inherit pname version;
 
       src = fetchurl {
         url = "https://repo.nordvpn.com/deb/nordvpn/debian/pool/main/n/nordvpn/nordvpn_${version}_amd64.deb";
-        hash = "sha256-oFf4uxZsucAh2yW++SQRxFx8+JdL8ZsNzWqzjJ2JqUs=";
-#        hash = "sha256-LcTQEqaP1+UeBxi+gqQAuQKKzVgzMWSb7rMEB6qc6hk=";
+#        hash = "sha256-oFf4uxZsucAh2yW++SQRxFx8+JdL8ZsNzWqzjJ2JqUs=";
+        hash = "sha256-rePBEVe6o49If5dYvIUW361E7nFqngzd+XkiOeehY7w=";
       };
 
       buildInputs = [libxml2 libidn2 libnl libcap_ng sqlite];
@@ -107,7 +107,7 @@
     }) {};
 in
   with lib; {
-    options.myypo.services.custom.nordvpn.enable = mkOption {
+    options.custom.services.nordvpn.enable = mkOption {
       type = types.bool;
       default = false;
       description = ''
@@ -118,13 +118,12 @@ in
       '';
     };
 
-    config = mkIf config.myypo.services.custom.nordvpn.enable {
+    config = mkIf config.custom.services.nordvpn.enable {
       networking.firewall.checkReversePath = false;
 
       environment.systemPackages = [nordVpnPkg];
 
       users.groups.nordvpn = {};
-      users.groups.nordvpn.members = ["myypo"];
       systemd = {
         services.nordvpn = {
           description = "NordVPN daemon.";
