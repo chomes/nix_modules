@@ -17,6 +17,15 @@ This is a repo of nixos modules, for now it'll just have the nordvpn module and 
       ./nordvpn-module.nix
     ];
 ```
+
+* In your configuration.nix file you will then need to add the following lines
+
+```nix
+  # NordVPN configuration
+  custom.services.nordvpn.enable = true;
+  users.groups.nordvpn.members = ["$YOUR_USERNAME"];
+```
+
 * Run `sudo nixos-rebuild switch` and it will install the package, then just login and start using!
 
 
