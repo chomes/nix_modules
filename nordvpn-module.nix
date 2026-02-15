@@ -32,7 +32,6 @@
 
       src = fetchurl {
         url = "https://repo.nordvpn.com/deb/nordvpn/debian/pool/main/n/nordvpn/nordvpn_${version}_amd64.deb";
-#        hash = "sha256-oFf4uxZsucAh2yW++SQRxFx8+JdL8ZsNzWqzjJ2JqUs=";
         hash = "sha256-rePBEVe6o49If5dYvIUW361E7nFqngzd+XkiOeehY7w=";
       };
 
@@ -107,23 +106,71 @@
     }) {};
 in
   with lib; {
-    options.custom.services.nordvpn.enable = mkOption {
+    options.services.nordvpn.enable = mkOption {
       type = types.bool;
       default = false;
       description = ''
-        Whether to enable the NordVPN daemon. Note that you'll have to set
-        `networking.firewall.checkReversePath = false;`, add UDP 1194
-        and TCP 443 to the list of allowed ports in the firewall and add your
-        user to the "nordvpn" group (`users.users.<username>.extraGroups`).
+        Whether to enable the NordVPN daemon.
       '';
     };
 
-    config = mkIf config.custom.services.nordvpn.enable {
-      networking.firewall.checkReversePath = false;
+    options.services.nordvpn.users = mkOption {
+      type = types.listOf types.str;
+      description = ''
+        Which users to add to the "nordvpn" group.
+        Your current user must be in the group for a successful
+        login. If you prefer to set this elsewhere, like
+        `users.users.<username>.extraGroups`, set this to `[]`.
+        Keep in mind that updating groups may require reboot/re-login.
+      '';
+      example = ["alice"];
+    };
 
+    options.services.nordvpn.openFirewall = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Whether to open the firewall for NordVPN.
+        This includes setting
+        `networking.firewall.checkReversePath = false;` and
+        adding ports TCP 443 and UDP 1194 to the respective allowlists.
+      '';
+      example = true;
+    };
+
+    options.services.nordvpn.mtu = mkOption {
+      type = types.nullOr types.int;
+      default = null;
+      description = ''
+        MTU (max network package size) - smaller means more fragmentation,
+        but larger packages can fail to transmit. Leave empty to use the default,
+        set to something like `1280` if connection issues occur.
+        (Hint: you can test if MTU is low enough using `ping -M do -s 1280 1.1.1.1`,
+        replacing `1280` by the MTU you want to try. If too large, it will
+        fail with `ping: sendmsg: Message too long`.)
+      '';
+      example = 1280;
+    };
+
+    config = mkIf config.services.nordvpn.enable {
       environment.systemPackages = [nordVpnPkg];
 
-      users.groups.nordvpn = {};
+      networking.firewall = mkIf config.services.nordvpn.openFirewall {
+        checkReversePath = false;
+        allowedTCPPorts = [443];
+        allowedUDPPorts = [1194];
+      };
+
+      networking.interfaces = mkIf (config.services.nordvpn.mtu != null) {
+        nordlynx.mtu = config.services.nordvpn.mtu;
+      };
+
+      # if services.nordvpn.users is defined, add the specified users to the nordvpn group,
+      # otherwise ensure group exists by setting users.groups.nordvpn = {}
+      users.groups.nordvpn = {
+        members = mkIf (config.services.nordvpn.users != []) config.services.nordvpn.users;
+      };
+
       systemd = {
         services.nordvpn = {
           description = "NordVPN daemon.";
